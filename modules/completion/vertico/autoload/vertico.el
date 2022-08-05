@@ -1,27 +1,8 @@
 ;;; completion/vertico/autoload/vertico.el -*- lexical-binding: t; -*-
 
-;; To prevent "Unused lexical variable" warning from +vertico--company-capf--candidates-a
-;;;###autoload
-(defvar orderless-match-faces)
-
 ;; To prevent "Defining as dynamic an already lexical var" from +vertico/embark-preview
 ;;;###autoload
 (defvar embark-quit-after-action)
-
-;;;###autoload
-(defadvice! +vertico--company-capf--candidates-a (fn &rest args)
-  "Highlight company matches correctly, and try default completion styles before
-orderless."
-  :around #'company-capf--candidates
-  (let ((orderless-match-faces [completions-common-part])
-        (completion-styles +vertico-company-completion-styles))
-    (apply fn args)))
-
-;;;###autoload
-(defadvice! +vertico--consult-recent-file-a (&rest _args)
-  "`consult-recent-file' needs to have `recentf-mode' on to work correctly"
-  :before #'consult-recent-file
-  (recentf-mode +1))
 
 ;;;###autoload
 (cl-defun +vertico-file-search (&key query in all-files (recursive t) prompt args)
@@ -44,11 +25,11 @@ orderless."
           (concat "rg "
                   (if all-files "-uu ")
                   (unless recursive "--maxdepth 1 ")
-                  "--line-buffered --color=never --max-columns=1000 "
+                  "--null --line-buffered --color=never --max-columns=1000 "
                   "--path-separator /   --smart-case --no-heading --line-number "
                   "--hidden -g !.git "
                   (mapconcat #'shell-quote-argument args " ")
-                  "."))
+                  " ."))
          (prompt (if (stringp prompt) (string-trim prompt) "Search"))
          (query (or query
                     (when (doom-region-active-p)
@@ -209,16 +190,21 @@ current target followed by an ellipsis if there are further
 targets."
   (lambda (&optional keymap targets prefix)
     (if (null keymap)
-        (kill-buffer which-key--buffer)
+        (which-key--hide-popup-ignore-command)
       (which-key--show-keymap
-       (if (eq (caar targets) 'embark-become)
+       (if (eq (plist-get (car targets) :type) 'embark-become)
            "Become"
          (format "Act on %s '%s'%s"
                  (plist-get (car targets) :type)
                  (embark--truncate-target (plist-get (car targets) :target))
                  (if (cdr targets) "…" "")))
-       (if prefix (lookup-key keymap prefix) keymap)
-       nil nil t))))
+       (if prefix
+           (pcase (lookup-key keymap prefix 'accept-default)
+             ((and (pred keymapp) km) km)
+             (_ (key-binding prefix 'accept-default)))
+         keymap)
+       nil nil t (lambda (binding)
+                   (not (string-suffix-p "-argument" (cdr binding))))))))
 
 ;;;###autoload
 (defun +vertico/crm-select ()
@@ -258,17 +244,6 @@ targets."
              (default-directory (cdr prompt-dir)))
         (find-file (consult--find (car prompt-dir) #'+vertico--consult--fd-builder initial)))
     (consult-find dir initial)))
-
-;;;###autoload
-(defun +vertico-embark-vertico-indicator ()
-  "An embark indicator that colorizes the vertico candidate differently on act"
-  (let ((fr face-remapping-alist))
-    (lambda (&optional keymap _targets prefix)
-      (when (bound-and-true-p vertico--input)
-        (setq-local face-remapping-alist
-                    (if keymap
-                        (cons '(vertico-current . embark-target) fr)
-                      fr))))))
 
 ;;;###autoload
 (defun +vertico-basic-remote-try-completion (string table pred point)

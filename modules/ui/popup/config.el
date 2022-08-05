@@ -155,6 +155,8 @@ prevent the popup(s) from messing up the UI (or vice versa)."
        :slot 2 :vslot -8 :size 0.35 :select t)
       ("^\\*eww\\*"  ; `eww' (and used by dash docsets)
        :vslot -11 :size 0.35 :select t)
+      ("^\\*xwidget"
+       :vslot -11 :size 0.35 :select nil)
       ("^\\*info\\*$"  ; `Info-mode'
        :slot 2 :vslot 2 :size 0.45 :select t)))
   '(("^\\*Warnings" :vslot 99 :size 0.25)
@@ -162,7 +164,7 @@ prevent the popup(s) from messing up the UI (or vice versa)."
     ("^\\*CPU-Profiler-Report "    :side bottom :vslot 100 :slot 1 :height 0.4 :width 0.5 :quit nil)
     ("^\\*Memory-Profiler-Report " :side bottom :vslot 100 :slot 2 :height 0.4 :width 0.5 :quit nil)
     ("^\\*Process List\\*" :side bottom :vslot 101 :size 0.25 :select t :quit t)
-    ("^\\*\\(?:Proced\\|timer-list\\|Abbrevs\\|Output\\|Occur\\|unsent mail\\)\\*" :ignore t)))
+    ("^\\*\\(?:Proced\\|timer-list\\|Abbrevs\\|Output\\|Occur\\|unsent mail.*?\\|message\\)\\*" :ignore t)))
 
 (add-hook 'doom-init-ui-hook #'+popup-mode 'append)
 

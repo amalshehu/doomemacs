@@ -102,13 +102,14 @@
         (let (confirm-kill-processes)
           (delete-window win)
           (ignore-errors (kill-buffer eshell-buffer)))
-      (with-current-buffer (pop-to-buffer eshell-buffer)
+      (with-current-buffer eshell-buffer
         (doom-mark-buffer-as-real-h)
         (if (eq major-mode 'eshell-mode)
             (run-hooks 'eshell-mode-hook)
           (eshell-mode))
         (when command
-          (+eshell-run-command command eshell-buffer))))))
+          (+eshell-run-command command eshell-buffer)))
+      (pop-to-buffer eshell-buffer))))
 
 ;;;###autoload
 (defun +eshell/here (&optional command)
@@ -164,6 +165,9 @@ Once the eshell process is killed, the previous frame layout is restored."
                      :action #'ivy-completion-in-region-action)))
         ((featurep! :completion helm)
          (helm-eshell-history))
+        ((featurep! :completion vertico)
+         (forward-char 1) ;; Move outside of read only prompt text.
+         (consult-history))
         ((eshell-list-history))))
 
 ;;;###autoload

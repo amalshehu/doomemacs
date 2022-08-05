@@ -7,12 +7,6 @@
   "The backends to prepend to `company-backends' in `lsp-mode' buffers.
 Can be a list of backends; accepts any value `company-backends' accepts.")
 
-(defvar +lsp-prompt-to-install-server t
-  "If non-nil, prompt to install a server if no server is present.
-
-If set to `quiet', suppress the install prompt and don't visibly inform the user
-about it (it will be logged to *Messages* however).")
-
 
 ;;
 ;;; Packages
@@ -21,7 +15,7 @@ about it (it will be logged to *Messages* however).")
   :commands lsp-install-server
   :init
   ;; Don't touch ~/.emacs.d, which could be purged without warning
-  (setq lsp-session-file (concat doom-etc-dir "lsp-session")
+  (setq lsp-session-file (concat doom-cache-dir "lsp-session")
         lsp-server-install-dir (concat doom-etc-dir "lsp"))
   ;; Don't auto-kill LSP server after last workspace buffer is killed, because I
   ;; will do it for you, after `+lsp-defer-shutdown' seconds.
@@ -65,7 +59,7 @@ about it (it will be logged to *Messages* however).")
         (lsp-signature-stop)
         t)))
 
-  (set-popup-rule! "^\\*lsp-help" :size 0.35 :quit t :select t)
+  (set-popup-rule! "^\\*lsp-\\(help\\|install\\)" :size 0.35 :quit t :select t)
   (set-lookup-handlers! 'lsp-mode
     :definition #'+lsp-lookup-definition-handler
     :references #'+lsp-lookup-references-handler
@@ -127,23 +121,6 @@ server getting expensively restarted when reverting buffers."
                        (+lsp-optimization-mode -1))))
              lsp--cur-workspace))))
 
-  (defadvice! +lsp-dont-prompt-to-install-servers-maybe-a (fn &rest args)
-    :around #'lsp
-    (when (buffer-file-name)
-      (require 'lsp-mode)
-      (lsp--require-packages)
-      (if (or (lsp--filter-clients
-               (-andfn #'lsp--matching-clients?
-                       #'lsp--server-binary-present?))
-              (not (memq +lsp-prompt-to-install-server '(nil quiet))))
-          (apply fn args)
-        ;; HACK `lsp--message' overrides `inhibit-message', so use `quiet!'
-        (let ((doom-debug-p
-               (or doom-debug-p
-                   (not (eq +lsp-prompt-to-install-server 'quiet)))))
-          (doom-shut-up-a #'lsp--info "No language server available for %S"
-                          major-mode)))))
-
   (when (featurep! :ui modeline +light)
     (defvar-local lsp-modeline-icon nil)
 
@@ -186,7 +163,8 @@ instead is more sensible."
 
   (setq lsp-ui-peek-enable (featurep! +peek)
         lsp-ui-doc-max-height 8
-        lsp-ui-doc-max-width 35
+        lsp-ui-doc-max-width 72         ; 150 (default) is too wide
+        lsp-ui-doc-delay 0.75           ; 0.2 (default) is too naggy
         lsp-ui-doc-show-with-mouse nil  ; don't disappear on mouseover
         lsp-ui-doc-position 'at-point
         lsp-ui-sideline-ignore-duplicate t
@@ -196,10 +174,7 @@ instead is more sensible."
         lsp-ui-sideline-show-hover nil
         ;; Re-enable icon scaling (it's disabled by default upstream for Emacs
         ;; 26.x compatibility; see emacs-lsp/lsp-ui#573)
-        lsp-ui-sideline-actions-icon lsp-ui-sideline-actions-icon-default
-        ;; REVIEW Temporarily disabled, due to immense slowness on every
-        ;;        keypress. See emacs-lsp/lsp-ui#613
-        lsp-ui-doc-enable nil)
+        lsp-ui-sideline-actions-icon lsp-ui-sideline-actions-icon-default)
 
   (map! :map lsp-ui-peek-mode-map
         "j"   #'lsp-ui-peek--select-next

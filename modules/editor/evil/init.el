@@ -112,6 +112,7 @@ variable for an explanation of the defaults (in comments). See
       debug
       devdocs
       dictionary
+      diff-hl
       diff-mode
       dired
       dired-sidebar
@@ -130,6 +131,7 @@ variable for an explanation of the defaults (in comments). See
       elisp-slime-nav
       embark
       emms
+      ,@(when EMACS29+ '(emoji))
       epa
       ert
       eshell
@@ -140,6 +142,7 @@ variable for an explanation of the defaults (in comments). See
       finder
       flycheck
       flymake
+      forge
       free-keys
       geiser
       ggtags
@@ -186,6 +189,7 @@ variable for an explanation of the defaults (in comments). See
       nov
       (occur replace)
       omnisharp
+      org
       org-present
       osx-dictionary
       outline
@@ -210,6 +214,7 @@ variable for an explanation of the defaults (in comments). See
       robe
       rtags
       ruby-mode
+      scheme
       scroll-lock
       selectrum
       sh-script
@@ -234,6 +239,7 @@ variable for an explanation of the defaults (in comments). See
       vc-dir
       vc-git
       vdiff
+      vertico
       view
       vlf
       vterm
@@ -244,6 +250,7 @@ variable for an explanation of the defaults (in comments). See
       woman
       xref
       xwidget
+      yaml-mode
       youtube-dl
       zmusic
       (ztree ztree-diff)))

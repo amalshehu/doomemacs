@@ -28,12 +28,21 @@ overrides `completion-styles' during company completion sessions.")
   ;; Cleans up path when moving directories with shadowed paths syntax, e.g.
   ;; cleans ~/foo/bar/// to /, and ~/foo/bar/~/ to ~/.
   (add-hook 'rfn-eshadow-update-overlay-hook #'vertico-directory-tidy)
+  (add-hook 'minibuffer-setup-hook #'vertico-repeat-save)
   (map! :map vertico-map [backspace] #'vertico-directory-delete-char))
 
 
 (use-package! orderless
   :after-call doom-first-input-hook
   :config
+  (defadvice! +vertico--company-capf--candidates-a (fn &rest args)
+    "Highlight company matches correctly, and try default completion styles before
+orderless."
+    :around #'company-capf--candidates
+    (let ((orderless-match-faces [completions-common-part])
+          (completion-styles +vertico-company-completion-styles))
+      (apply fn args)))
+
   (defun +vertico-orderless-dispatch (pattern _index _total)
     (cond
      ;; Ensure $ works with Consult commands, which add disambiguation suffixes
@@ -80,6 +89,7 @@ overrides `completion-styles' during company completion sessions.")
     [remap bookmark-jump]                 #'consult-bookmark
     [remap evil-show-marks]               #'consult-mark
     [remap evil-show-jumps]               #'+vertico/jump-list
+    [remap evil-show-registers]           #'consult-register
     [remap goto-line]                     #'consult-goto-line
     [remap imenu]                         #'consult-imenu
     [remap locate]                        #'consult-locate
@@ -94,6 +104,11 @@ overrides `completion-styles' during company completion sessions.")
   (advice-add #'completing-read-multiple :override #'consult-completing-read-multiple)
   (advice-add #'multi-occur :override #'consult-multi-occur)
   :config
+  (defadvice! +vertico--consult-recent-file-a (&rest _args)
+    "`consult-recent-file' needs to have `recentf-mode' on to work correctly"
+    :before #'consult-recent-file
+    (recentf-mode +1))
+
   (setq consult-project-root-function #'doom-project-root
         consult-narrow-key "<"
         consult-line-numbers-widen t
@@ -112,8 +127,8 @@ overrides `completion-styles' during company completion sessions.")
   (consult-customize
    consult-ripgrep consult-git-grep consult-grep
    consult-bookmark consult-recent-file
-   +default/search-project +default/search-project-for-symbol-at-point
-   +default/search-other-project +vertico/search-symbol-at-point
+   +default/search-project +default/search-other-project
+   +default/search-project-for-symbol-at-point
    +default/search-cwd +default/search-other-cwd
    +default/search-notes-for-symbol-at-point
    consult--source-file consult--source-project-file consult--source-bookmark
@@ -135,6 +150,12 @@ overrides `completion-styles' during company completion sessions.")
         :desc "Enter candidates" "RET" #'+vertico/crm-exit))
 
 
+(use-package! consult-dir
+  :bind (([remap list-directory] . consult-dir)
+         :map vertico-map
+         ("C-x C-d" . consult-dir)
+         ("C-x C-j" . consult-dir-jump-file)))
+
 (use-package! consult-flycheck
   :when (featurep! :checkers syntax)
   :after (consult flycheck))
@@ -155,8 +176,15 @@ overrides `completion-styles' during company completion sessions.")
          :desc "Actions" "a" #'embark-act)) ; to be moved to :config default if accepted
   :config
   (set-popup-rule! "^\\*Embark Export Grep" :size 0.35 :ttl 0 :quit nil)
+
+  (defadvice! +vertico--embark-which-key-prompt-a (fn &rest args)
+    "Hide the which-key indicator immediately when using the completing-read prompter."
+    :around #'embark-completing-read-prompter
+    (which-key--hide-popup-ignore-command)
+    (let ((embark-indicators
+           (remq #'embark-which-key-indicator embark-indicators)))
+      (apply fn args)))
   (cl-nsubstitute #'+vertico-embark-which-key-indicator #'embark-mixed-indicator embark-indicators)
-  (add-to-list 'embark-indicators #'+vertico-embark-vertico-indicator)
   ;; add the package! target finder before the file target finder,
   ;; so we don't get a false positive match.
   (let ((pos (or (cl-position
@@ -192,11 +220,10 @@ overrides `completion-styles' during company completion sessions.")
     (add-hook 'marginalia-mode-hook #'all-the-icons-completion-marginalia-setup))
   (advice-add #'marginalia--project-root :override #'doom-project-root)
   (pushnew! marginalia-command-categories
-            ;; HACK temporarily disabled until #5494 is fixed
-            ;;'(+default/find-file-under-here. file)
-            ;;'(doom/find-file-in-emacsd . project-file)
-            ;;'(doom/find-file-in-other-project . project-file)
-            ;;'(doom/find-file-in-private-config . file)
+            '(+default/find-file-under-here. file)
+            '(doom/find-file-in-emacsd . project-file)
+            '(doom/find-file-in-other-project . project-file)
+            '(doom/find-file-in-private-config . file)
             '(doom/describe-active-minor-mode . minor-mode)
             '(flycheck-error-list-set-filter . builtin)
             '(persp-switch-to-buffer . buffer)

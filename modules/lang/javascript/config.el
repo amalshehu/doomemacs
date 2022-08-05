@@ -122,7 +122,10 @@
                     'jsx-tide)))))
   :config
   (when (fboundp 'web-mode)
-    (define-derived-mode typescript-tsx-mode web-mode "TypeScript-TSX"))
+    (define-derived-mode typescript-tsx-mode web-mode "TypeScript-TSX")
+    (when (featurep! +lsp)
+      (after! lsp-mode
+        (add-to-list 'lsp--formatting-indent-alist '(typescript-tsx-mode . typescript-indent-level)))))
 
   (set-docsets! '(typescript-mode typescript-tsx-mode)
     :add "TypeScript" "AngularTS")
@@ -142,7 +145,11 @@
     typescript-indent-level
     (or (and (bound-and-true-p tide-mode)
              (plist-get (tide-tsfmt-options) :indentSize))
-        typescript-indent-level)))
+        typescript-indent-level)
+
+    ;; Fix #5556: expand .x to className="x" instead of class="x", if
+    ;; `emmet-mode' is used.
+    emmet-expand-jsx-className? t))
 
 
 ;;

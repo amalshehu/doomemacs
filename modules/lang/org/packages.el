@@ -3,28 +3,35 @@
 
 (package! org
   :recipe (:host github
-           ;; Install cutting-edge version of org, and from a mirror because
-           ;; code.orgmode.org's uptime is worse than Github's, and
-           ;; emacs-straight/org is smaller and, therefore, quicker to download.
-           :repo "emacs-straight/org"
+           ;; REVIEW I intentionally avoid git.savannah.gnu.org because of SSL
+           ;;   issues (see #5655), uptime issues, download time, and lack of
+           ;;   shallow clone support.
+           :repo "emacs-straight/org-mode"
            :files (:defaults "etc")
-           ;; HACK A necessary hack because org requires a compilation step
-           ;;      after being cloned, and during that compilation a
-           ;;      org-version.el is generated with these two functions, which
-           ;;      return the output of a 'git describe ...' call in the repo's
-           ;;      root. Of course, this command won't work in a sparse clone,
-           ;;      and initiating these compilation step is a hassle, so...
+           :depth 1
+           ;; HACK Org requires a post-install compilation step to generate a
+           ;;   org-version.el with org-release and org-git-version functions,
+           ;;   using a 'git describe ...' call.  This won't work in a sparse
+           ;;   clone and I value smaller network burdens on users over
+           ;;   non-essential variables so we fake it:
            :build t
            :pre-build
            (with-temp-file "org-version.el"
-             (insert "(defun org-release () \"9.5\")\n"
-                     (format "(defun org-git-version (&rest _) \"9.5-%s\")\n"
-                             (cdr (doom-call-process "git" "rev-parse" "--short" "HEAD")))
-                     "(provide 'org-version)\n")))
-  :pin "888aaa97c0ce331097787333d0d712dd6e4d078f")
+             (let ((version
+                    (with-temp-buffer
+                      (insert-file-contents (doom-path "lisp/org.el") nil 0 1024)
+                      (if (re-search-forward "^;; Version: \\([^\n-]+\\)" nil t)
+                          (match-string-no-properties 1)
+                        "Unknown"))))
+               (insert (format "(defun org-release () %S)\n" version)
+                       (format "(defun org-git-version (&rest _) \"%s-??-%s\")\n"
+                               version (cdr (doom-call-process "git" "rev-parse" "--short" "HEAD")))
+                       "(provide 'org-version)\n"))))
+  :pin "0c9b30e961ac7a20eb2e8985ab686c6940e79ef3")
 (package! org-contrib
-  :recipe (:host nil :repo "https://git.sr.ht/~bzg/org-contrib")
-  :pin "fc81309cf6756607a836f93049a9393c2967c4e0")
+  :recipe (:host github
+           :repo "emacsmirror/org-contrib")
+  :pin "e3183921779eb4f36a2170ebb58e43eb0e84a07e")
 
 (package! avy)
 (package! htmlize :pin "dd27bc3f26efd728f2b1f01f9e4ac4f61f2ffbf9")
@@ -55,27 +62,27 @@
 (when (featurep! +ipython) ; DEPRECATED
   (package! ob-ipython :pin "7147455230841744fb5b95dcbe03320313a77124"))
 (when (featurep! +jupyter)
-  (package! jupyter :pin "1f0612eb936d36abab0f27b09cca691e81fc6e74"))
+  (package! jupyter :pin "df343af5e9187a400a9291fa6a2b0c69f3ad0425"))
 (when (featurep! +journal)
-  (package! org-journal :pin "9757996ca058029800c4801fba315b1d1614dcb2"))
+  (package! org-journal :pin "71e8b10088ae52c4ac17f7af87020ea85fbc6ff7"))
 (when (featurep! +noter)
   (package! org-noter :pin "9ead81d42dd4dd5074782d239b2efddf9b8b7b3d"))
 (when (featurep! +pomodoro)
   (package! org-pomodoro :pin "aa07c11318f91219336197e62c47bc7a3d090479"))
 (when (featurep! +pretty)
-  (package! org-appear :pin "a1aa8496f2fd61305e43e03e6eeee2ff92aa9e24")
-  (package! org-superstar :pin "2cd3f1e74b88a846901da3249edb3a71d8e58c55")
+  (package! org-appear :pin "a4d10fc346ba14f487eb7aa95761b9295089ba55")
+  (package! org-superstar :pin "03be6c0a3081c46a59b108deb8479ee24a6d86c0")
   (package! org-fancy-priorities :pin "7f677c6c14ecf05eab8e0efbfe7f1b00ae68eb1d"))
 (when (featurep! +present)
   (package! centered-window
     :recipe (:host github :repo "anler/centered-window-mode")
     :pin "f50859941ab5c7cbeaee410f2d38716252b552ac")
-  (package! org-tree-slide :pin "9d2ba1df456d8d7c6372c8c294dbe3ee81540b33")
-  (package! org-re-reveal :pin "ee712db65782ddc2bffe19c60cdc40b72ce56769")
+  (package! org-tree-slide :pin "27f8bb6a9676e1c0b500e75799e3b5c37a9156af")
+  (package! org-re-reveal :pin "55fca47c740c50fe04cbf2b8ae90e02174626c0c")
   (package! revealjs
     :recipe (:host github :repo "hakimel/reveal.js"
              :files ("css" "dist" "js" "plugin"))
-    :pin "abe9abbed7c68d1e73f5befb6cf256b71d77e769"))
+    :pin "a9277f9d465a07cc3b2baa3a2c4fbc152afd7f14"))
 (cond
  ((featurep! +roam)
   (package! org-roam
@@ -86,7 +93,7 @@
     ;; FIXME A :recipe isn't strictly necessary, but without it, our package
     ;;       bumper fails to distinguish between org-roam v1 and v2.
     :recipe (:host github :repo "org-roam/org-roam")
-    :pin "1795039ab93ef19611dbb3fca21c4211c4e655a9")))
+    :pin "abe63b436035049923ae96639b9b856697047779")))
 
 ;;; Babel
 (package! ob-async :pin "9aac486073f5c356ada20e716571be33a350a982")
@@ -111,10 +118,10 @@
 
 ;;; Export
 (when (featurep! +pandoc)
-  (package! ox-pandoc :pin "aa37dc7e94213d4ebedb85c384c1ba35007da18e"))
+  (package! ox-pandoc :pin "eda1f21fd519427c070d165f8a663db07b87ac29"))
 (when (featurep! +hugo)
   (package! ox-hugo
     :recipe (:host github :repo "kaushalmodi/ox-hugo" :nonrecursive t)
-    :pin "1b8f2627cd63ac21b84c5abe3d5b607bc778670a"))
+    :pin "88e60681901573797ce53c91ad8fa0936f6e4ee2"))
 (when (featurep! :lang rst)
   (package! ox-rst :pin "99fa790da55b57a3f2e9aa187493ba434a64250e"))

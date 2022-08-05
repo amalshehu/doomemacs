@@ -94,7 +94,7 @@
 
   (plist-put (cdr (assoc :flags mu4e-header-info)) :shortname " Flags") ; default=Flgs
   (add-to-list 'mu4e-bookmarks
-               '(:name "Flagged messages" :query "flag:flagged" :key ?f) t)
+               '("flag:flagged" "Flagged messages" ?f) t)
 
   ;; TODO avoid assuming that all-the-icons is present
   (defvar +mu4e-header-colorized-faces
@@ -193,8 +193,9 @@
   (when (fboundp 'imagemagick-register-types)
     (imagemagick-register-types))
 
-  (map! :map mu4e-main-mode-map
-        :ne "h" #'+workspace/other)
+  (when (featurep! :ui workspaces)
+    (map! :map mu4e-main-mode-map
+          :ne "h" #'+workspace/other))
 
   (map! :map mu4e-headers-mode-map
         :vne "l" #'+mu4e/capture-msg-to-agenda)
@@ -446,7 +447,7 @@ Must be set before org-msg is loaded to take effect.")
             (span underline ((text-decoration . "underline")))
             (li nil (,line-height (margin-bottom . "0px")
                                   (margin-top . "2px")
-                                  (max-width . "84ch")))
+                                  (max-width . "47em")))
             (nil org-ul ((list-style-type . "disc")))
             (nil org-ol (,@font ,line-height (margin-bottom . "0px")
                                 (margin-top . "0px") (margin-left . "30px")
@@ -470,8 +471,9 @@ Must be set before org-msg is loaded to take effect.")
                       (margin . "4px 0px 8px 0px")
                       (padding . "8px 12px")
                       (width . "max-content")
-                      (min-width . "80ch")
+                      (min-width . "50em")
                       (border-radius . "5px")
+                      (font-size . "0.9em")
                       (font-weight . "500")
                       ,monospace-font))
             (div org-src-container ((margin-top . "10px")))
@@ -501,7 +503,8 @@ Must be set before org-msg is loaded to take effect.")
             (kbd nil ((border . "1px solid #d1d5da") (border-radius . "3px")
                       (box-shadow . "inset 0 -1px 0 #d1d5da")
                       (background-color . "#fafbfc") (color . "#444d56")
-                      (padding . "3px 5px") (display . "inline-block")))
+                      (font-size . "0.85em")
+                      (padding . "1px 4px") (display . "inline-block")))
             (div outline-text-4 ((margin-left . "15px")))
             (div outline-4 ((margin-left . "10px")))
             (h4 nil ((margin-bottom . "0px") (font-size . "11pt")))
@@ -513,7 +516,7 @@ Must be set before org-msg is loaded to take effect.")
                      ,color (font-size . "24pt")))
             (p nil ((text-decoration . "none") (line-height . "1.4")
                     (margin-top . "10px") (margin-bottom . "0px")
-                    ,font-size (max-width . "90ch")))
+                    ,font-size (max-width . "50em")))
             (b nil ((font-weight . "500") (color . ,theme-color)))
             (div nil (,@font (line-height . "12pt")))))))
 
@@ -614,6 +617,19 @@ See `+mu4e-msg-gmail-p' and `mu4e-sent-messages-behavior'.")
   (mu4e-alert-enable-mode-line-display)
   (mu4e-alert-enable-notifications)
 
+  (when (version<= "1.6" mu4e-mu-version)
+    (defadvice! +mu4e-alert-filter-repeated-mails-fixed-a (mails)
+      "Filters the MAILS that have been seen already\nUses :message-id not :docid."
+      :override #'mu4e-alert-filter-repeated-mails
+      (cl-remove-if (lambda (mail)
+                      (prog1 (and (not mu4e-alert-notify-repeated-mails)
+                                  (ht-get mu4e-alert-repeated-mails
+                                          (plist-get mail :message-id)))
+                        (ht-set! mu4e-alert-repeated-mails
+                                 (plist-get mail :message-id)
+                                 t)))
+                    mails)))
+
   (when IS-LINUX
     (mu4e-alert-set-default-style 'libnotify)
 
@@ -626,7 +642,7 @@ Disabled when set to nil.")
       "Default function to format MAIL-GROUP for notification.
 ALL-MAILS are the all the unread emails"
       (when +mu4e-alert-bell-cmd
-        (start-process (car +mu4e-alert-bell-cmd) (cdr +mu4e-alert-bell-cmd)))
+        (start-process "mu4e-alert-bell" nil (car +mu4e-alert-bell-cmd) (cdr +mu4e-alert-bell-cmd)))
       (if (> (length mail-group) 1)
           (let* ((mail-count (length mail-group))
                  (first-mail (car mail-group))
@@ -650,7 +666,8 @@ ALL-MAILS are the all the unread emails"
                                                    ((string-match-p "\\`Fwd:"
                                                                     (plist-get mail :subject)) " ⮯ ")
                                                    (t "  "))
-                                                  (truncate-string-to-width (caar (plist-get mail :from))
+                                                  (truncate-string-to-width (or (caar (plist-get mail :from))
+                                                                                (cdar (plist-get mail :from)))
                                                                             20 nil nil t)
                                                   (truncate-string-to-width
                                                    (replace-regexp-in-string "\\`Re: \\|\\`Fwd: " ""

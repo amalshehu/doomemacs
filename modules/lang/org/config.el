@@ -17,7 +17,7 @@
   "An alist mapping languages to babel libraries. This is necessary for babel
 libraries (ob-*.el) that don't match the name of the language.
 
-For example, (fish . shell) will cause #+BEGIN_SRC fish blocks to load
+For example, (fish . shell) will cause #+begin_src fish blocks to load
 ob-shell.el when executed.")
 
 (defvar +org-babel-load-functions ()
@@ -308,7 +308,14 @@ Also adds support for a `:sync' parameter to override `:async'."
   (add-hook 'org-babel-after-execute-hook #'org-redisplay-inline-images)
 
   (after! python
-    (setq org-babel-python-command python-shell-interpreter))
+    (unless org-babel-python-command
+      (setq org-babel-python-command
+            (string-trim
+             (concat python-shell-interpreter " "
+                     (if (string-match-p "\\<i?python[23]?$" python-shell-interpreter)
+                         (replace-regexp-in-string
+                          "\\(^\\| \\)-i\\( \\|$\\)" " " python-shell-interpreter-args)
+                       python-shell-interpreter-args))))))
 
   (after! ob-ditaa
     ;; TODO Should be fixed upstream
@@ -796,6 +803,7 @@ between the two."
         "+" #'org-ctrl-c-minus
         "," #'org-switchb
         "." #'org-goto
+        "@" #'org-cite-insert
         (:when (featurep! :completion ivy)
          "." #'counsel-org-goto
          "/" #'counsel-org-goto-all)
@@ -924,6 +932,7 @@ between the two."
         (:prefix ("s" . "tree/subtree")
          "a" #'org-toggle-archive-tag
          "b" #'org-tree-to-indirect-buffer
+         "c" #'org-clone-subtree-with-time-shift
          "d" #'org-cut-subtree
          "h" #'org-promote-subtree
          "j" #'org-move-subtree-down
@@ -1068,7 +1077,9 @@ compelling reason, so..."
         ;; Resume when clocking into task with open clock
         org-clock-in-resume t
         ;; Remove log if task was clocked for 0:00 (accidental clocking)
-        org-clock-out-remove-zero-time-clocks t)
+        org-clock-out-remove-zero-time-clocks t
+        ;; The default value (5) is too conservative.
+        org-clock-history-length 20)
   (add-hook 'kill-emacs-hook #'org-clock-save))
 
 
@@ -1206,6 +1217,7 @@ compelling reason, so..."
   (defvar org-directory nil)
   (defvar org-id-locations-file nil)
   (defvar org-attach-id-dir nil)
+  (defvar org-babel-python-command nil)
 
   (setq org-publish-timestamp-directory (concat doom-cache-dir "org-timestamps/")
         org-preview-latex-image-directory (concat doom-cache-dir "org-latex/")
